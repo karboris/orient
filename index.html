@@ -48,6 +48,32 @@
   button.btn.red{background:#c0392b}
   button.btn.small{padding:10px 8px;font-size:13px;font-weight:500}
   .status{font-size:12px;color:#8a8a8e;text-align:center;min-height:15px}
+
+  /* Модальное окно "О программе" */
+  #aboutOverlay{position:fixed;inset:0;background:rgba(0,0,0,.75);display:none;
+    align-items:center;justify-content:center;z-index:100;padding:20px;
+    -webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
+  #aboutOverlay.open{display:flex}
+  #aboutBox{background:#1b1b1e;border:1px solid #2c2c30;border-radius:16px;padding:20px;
+    max-width:360px;width:100%;color:#eee;box-shadow:0 12px 40px rgba(0,0,0,.6);
+    max-height:85vh;overflow-y:auto}
+  #aboutBox h2{margin:0 0 4px;font-size:20px;color:#4fc3f7}
+  #aboutBox .subtitle{font-size:12px;color:#8a8a8e;margin:0 0 14px}
+  #aboutBox p{margin:8px 0;font-size:13.5px;line-height:1.55;color:#c9c9ce}
+  #aboutBox h3{margin:16px 0 6px;font-size:12px;color:#8a8a8e;text-transform:uppercase;
+    letter-spacing:.5px;font-weight:600}
+  #aboutBox ul{margin:6px 0;padding-left:20px;font-size:13.5px;line-height:1.6;color:#c9c9ce}
+  #aboutBox li{margin:3px 0}
+  #aboutBox .contactRow{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:15px}
+  #aboutBox .contactRow .label{color:#8a8a8e;font-size:12px;min-width:60px}
+  #aboutBox a{color:#4fc3f7;text-decoration:none;font-weight:600;font-variant-numeric:tabular-nums}
+  #aboutBox .phone{font-size:16px;font-weight:700;color:#fff;letter-spacing:.3px;
+    font-variant-numeric:tabular-nums}
+  #aboutBox .closeBtn{margin-top:18px;width:100%;padding:13px;border-radius:11px;border:none;
+    background:#0a84ff;color:#fff;font-size:15px;font-weight:600}
+  #aboutBox .closeBtn:active{filter:brightness(1.2)}
+  #aboutBox .credit{font-size:11.5px;color:#6f6f75;margin-top:14px;text-align:center;
+    padding-top:12px;border-top:1px solid #262629}
 </style>
 </head>
 <body>
@@ -91,10 +117,46 @@
     <div class="row">
       <button class="btn small" id="exportBtn">⭳ Экспорт</button>
       <button class="btn small" id="importBtn">⭱ Импорт</button>
+      <button class="btn small" id="aboutBtn">ⓘ О программе</button>
       <input type="file" id="importFile" accept="application/json,.json" style="display:none">
     </div>
 
     <div class="status" id="status">Ожидание GPS…</div>
+  </div>
+</div>
+
+<!-- Модальное окно о программе -->
+<div id="aboutOverlay">
+  <div id="aboutBox">
+    <h2>Ориентирование</h2>
+    <p class="subtitle">Приложение для спортивного ориентирования по GPS</p>
+
+    <p>Позволяет отмечать пикеты, задавать азимут и расстояние до следующей точки, вести трек движения, поворачивать карту по курсу и сохранять прогресс при закрытии.</p>
+
+    <h3>Основные возможности</h3>
+    <ul>
+      <li>Отметка текущего положения кнопкой «Я здесь»</li>
+      <li>Расчёт следующей точки по азимуту и расстоянию</li>
+      <li>Подтверждение взятия пикета кнопкой «Пикет найден»</li>
+      <li>История маршрута с цветовой разметкой участков</li>
+      <li>Авто-поворот карты по направлению движения</li>
+      <li>Компас устройства с указанием на цель</li>
+      <li>Автосохранение в память телефона</li>
+      <li>Экспорт и импорт данных в JSON</li>
+    </ul>
+
+    <h3>Автор</h3>
+    <div class="contactRow">
+      <span class="label">Телефон</span>
+      <span class="phone">+375 29 309-27-31</span>
+    </div>
+    <div class="contactRow">
+      <span class="label">Email</span>
+      <a href="mailto:karboris@gmail.com">karboris@gmail.com</a>
+    </div>
+
+    <button class="closeBtn" id="aboutClose">Закрыть</button>
+    <div class="credit">Карта: © OpenStreetMap contributors<br>2026</div>
   </div>
 </div>
 
@@ -227,10 +289,8 @@ function render(){
   ctx.fillStyle = '#0d1a12';
   ctx.fillRect(0, 0, W, H);
 
-  /* ======================= Анкеры ======================= */
   const pts = [];
   if (state.autoRotate && state.gps){
-    /* В режиме "Авто" кадр всегда центрируется на текущем GPS */
     pts.push(state.gps);
   } else {
     state.checkpoints.forEach(c => pts.push(c));
@@ -611,13 +671,11 @@ function updateAutoRotate(){
 
   let courseDeg = null;
 
-  /* 1) Приоритет — heading из GPS (есть на Android Chrome при движении) */
   if (state.lastCourseDeg !== null &&
       (state.gps.speed === null || state.gps.speed > 0.5)){
     courseDeg = state.lastCourseDeg;
   }
 
-  /* 2) Fallback — вычисляем по треку: смотрим на ~15 м назад */
   if (courseDeg === null && state.trail.length >= 2){
     for (let i = state.trail.length - 1; i >= 0; i--){
       const d = haversine(state.trail[i], state.gps);
@@ -626,7 +684,6 @@ function updateAutoRotate(){
         break;
       }
     }
-    /* если весь трек близко — берём первую и последнюю точку */
     if (courseDeg === null && state.trail.length >= 2){
       const d = haversine(state.trail[0], state.gps);
       if (d > 3) courseDeg = bearing(state.trail[0], state.gps);
@@ -635,8 +692,6 @@ function updateAutoRotate(){
 
   if (courseDeg === null) return;
 
-  /* Хотим, чтобы направление движения смотрело вверх:
-     rotation = -courseRad, нормализуем и сглаживаем */
   let target = -courseDeg * RAD;
   target = ((target + Math.PI) % TAU + TAU) % TAU - Math.PI;
 
@@ -750,7 +805,8 @@ document.getElementById('exportBtn').addEventListener('click', function(){
     autoRotate: state.autoRotate,
     lastCourseDeg: state.lastCourseDeg,
     az: document.getElementById('az').value,
-    dist: document.getElementById('dist').value
+    dist: document.getElementById('dist').value,
+    author: { phone: '+375 29 309-27-31', email: 'karboris@gmail.com' }
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -807,6 +863,17 @@ document.getElementById('importFile').addEventListener('change', function(e){
   e.target.value = '';
 });
 
+/* ======================= О программе ======================= */
+document.getElementById('aboutBtn').addEventListener('click', function(){
+  document.getElementById('aboutOverlay').classList.add('open');
+});
+document.getElementById('aboutClose').addEventListener('click', function(){
+  document.getElementById('aboutOverlay').classList.remove('open');
+});
+document.getElementById('aboutOverlay').addEventListener('click', function(e){
+  if (e.target === this) this.classList.remove('open');
+});
+
 /* ======================= GPS ======================= */
 const statusEl = document.getElementById('status');
 function setStatus(t){ statusEl.textContent = t; }
@@ -835,7 +902,6 @@ function onPos(pos){
   const prev = state.gps;
   state.gps = p;
 
-  /* Обновляем запомненный курс, если приёмник его даёт и мы движемся */
   if (p.heading !== null && (p.speed === null || p.speed > 0.5)){
     state.lastCourseDeg = p.heading;
   }
@@ -862,7 +928,7 @@ function onPosErr(err){
   setStatus(msg);
 }
 
-/* ======================= Компас устройства ======================= */
+/* ======================= Компас ======================= */
 function onOrient(e){
   let h = null;
   if (typeof e.webkitCompassHeading === 'number' && !isNaN(e.webkitCompassHeading)){
@@ -941,7 +1007,6 @@ canvas.addEventListener('touchmove', e => {
     if (newRot < -Math.PI) newRot += TAU;
     view.rotation = newRot;
 
-    /* Если пользователь крутит двумя пальцами — выключаем авто-поворот */
     if (Math.abs(newRot - touchState.startRotation) > 0.05 && state.autoRotate){
       state.autoRotate = false;
       updateAutoButton();
